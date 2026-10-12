@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Spreedly.ComposerSdk</RootNamespace>
+    <AssemblyName>Spreedly.ComposerSdk</AssemblyName>
+    <PackageId>Spreedly.ComposerSdk.Server</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Spreedly</Authors>
+    <Company>Spreedly, Inc.</Company>
+    <Product>Spreedly Composer .NET Server SDK</Product>
+    <Description>Server-side SDK for integrating Spreedly Composer into .NET applications</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/spreedly/composer-sdk-server-dotnet</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/spreedly/composer-sdk-server-dotnet</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Copyright>Copyright 2025-2026 Spreedly, Inc.</Copyright>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="[13.0.1,14.0)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../../NOTICE" Pack="true" PackagePath="/" />
+    <None Include="../../THIRD-PARTY-LICENSES" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+</Project>

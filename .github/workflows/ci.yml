@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The library targets net8.0 (ComposerSdk.csproj); the tests multi-target
+      # net8.0 and net10.0, so both SDKs/runtimes are needed.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Test (net8.0)
+        run: dotnet test --no-build --configuration Release --framework net8.0
+
+      - name: Test (net10.0)
+        run: dotnet test --no-build --configuration Release --framework net10.0

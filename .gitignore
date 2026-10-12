@@ -1,0 +1,12 @@
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+coverage/
+coverage-report/
+*.coverage
+*.coveragexml
+*.lcov
+*.opencover.xml
