@@ -1,2 +1,8 @@
 Spreedly Composer .NET Server SDK
 Copyright 2025-2026 Spreedly, Inc.
+
+This SDK depends on the following package at runtime. NuGet installs it
+alongside the SDK; it is not bundled in the SDK assembly. Its full license
+text is in THIRD-PARTY-LICENSES.
+
+- Newtonsoft.Json (MIT)
