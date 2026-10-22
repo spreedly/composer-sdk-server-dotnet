@@ -36,16 +36,16 @@ Check out the [Client SDK](https://npmjs.com/package/@dodgeball/trust-sdk-client
 
 ## Installation
 
-Install with the .NET CLI:
+The package isn't on NuGet yet. Clone the repository next to your project's folder:
 
 ```sh
-dotnet add package Spreedly.ComposerSdk.Server
+git clone https://github.com/spreedly/composer-sdk-server-dotnet.git
 ```
 
-Or with the Package Manager Console:
+Then add a project reference from your project's folder:
 
-```powershell
-Install-Package Spreedly.ComposerSdk.Server
+```sh
+dotnet add reference ../composer-sdk-server-dotnet/src/ComposerSdk/ComposerSdk.csproj
 ```
 
 ## Usage
