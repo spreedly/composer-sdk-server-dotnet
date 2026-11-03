@@ -30,22 +30,22 @@ The Composer Server SDK for .NET makes integration with the Composer API easy an
 
 ## Related
 
-Check out the [Client SDK](https://npmjs.com/package/@dodgeball/trust-sdk-client) for how to integrate Composer into your frontend applications.
+Check out the [Client SDK](https://www.npmjs.com/package/@spreedly/composer-sdk-client) for how to integrate Composer into your frontend applications.
 
 [Composer examples](https://github.com/spreedly/composer-examples) has a runnable example server for this SDK in `server/dotnet`, and a web client that calls it.
 
 ## Installation
 
-The package isn't on NuGet yet. Clone the repository next to your project's folder:
+Install with the .NET CLI:
 
 ```sh
-git clone https://github.com/spreedly/composer-sdk-server-dotnet.git
+dotnet add package Spreedly.ComposerSdk.Server
 ```
 
-Then add a project reference from your project's folder:
+Or with the Package Manager Console:
 
-```sh
-dotnet add reference ../composer-sdk-server-dotnet/src/ComposerSdk/ComposerSdk.csproj
+```powershell
+Install-Package Spreedly.ComposerSdk.Server
 ```
 
 ## Usage
@@ -229,7 +229,7 @@ The SDK writes JSON log lines to standard output. At the default `Info` level it
 
 | Parameter | Required | Description |
 | --- | --- | --- |
-| `sourceToken` | Either this or `sessionId` | A token representing the device making the request. Obtained from the [Client SDK](https://npmjs.com/package/@dodgeball/trust-sdk-client). |
+| `sourceToken` | Either this or `sessionId` | A token representing the device making the request. Obtained from the [Client SDK](https://www.npmjs.com/package/@spreedly/composer-sdk-client). |
 | `sessionId` | Either this or `sourceToken` | The current session ID of the request. |
 | `userId` | No | The ID of the user in your database, once you know it (for example, after registration). |
 | `useVerificationId` | No | `CheckpointAsync` only. The ID of a verification the user already completed. See [useVerification](#useverification). |
