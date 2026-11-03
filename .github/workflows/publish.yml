@@ -1,0 +1,212 @@
+name: Publish
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # Runs all dependency code (restore, build, tests, the SBOM tool) without
+  # id-token, so nothing here can request the OIDC token NuGet accepts for
+  # publishing.
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.check.outputs.name }}
+      version: ${{ steps.check.outputs.version }}
+      package: ${{ steps.pack.outputs.package }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the main ancestry check can see main.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The library targets net8.0; the tests also run on net10.0.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Check tag, version and CHANGELOG.md
+        id: check
+        env:
+          PROJECT: src/ComposerSdk/ComposerSdk.csproj
+        run: |
+          NAME="$(dotnet msbuild "${PROJECT}" -getProperty:PackageId)"
+          VERSION="$(dotnet msbuild "${PROJECT}" -getProperty:Version)"
+          LICENSE="$(dotnet msbuild "${PROJECT}" -getProperty:PackageLicenseExpression)"
+          if [[ "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match ComposerSdk.csproj version ${VERSION}"
+            exit 1
+          fi
+          if ! grep -qF "public const string SdkVersion = \"${VERSION}\";" src/ComposerSdk/Constants.cs; then
+            echo "SdkVersion in src/ComposerSdk/Constants.cs does not match ComposerSdk.csproj version ${VERSION}"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "Tagged commit ${GITHUB_SHA} is not on main"
+            exit 1
+          fi
+          HEADING="$(grep -m1 -E "^## ${VERSION//./\\.}( |$)" CHANGELOG.md || true)"
+          if [[ -z "${HEADING}" || "${HEADING,,}" == *unreleased* ]]; then
+            echo "CHANGELOG.md needs a released '## ${VERSION}' section"
+            exit 1
+          fi
+          awk -v v="${VERSION}" '/^## / { if (found) exit; if ($2 == v) { found = 1; next } } found' CHANGELOG.md > release-notes.md
+          {
+            echo "name=${NAME}"
+            echo "version=${VERSION}"
+            echo "license=${LICENSE}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Restore
+        run: dotnet restore
+
+      # ContinuousIntegrationBuild keeps the runner's paths out of the package.
+      - name: Build
+        run: dotnet build --no-restore --configuration Release -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: |
+          dotnet test --no-build --configuration Release --framework net8.0
+          dotnet test --no-build --configuration Release --framework net10.0
+
+      - name: Pack
+        id: pack
+        env:
+          NAME: ${{ steps.check.outputs.name }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          dotnet pack src/ComposerSdk/ComposerSdk.csproj --no-build --configuration Release --output dist -p:ContinuousIntegrationBuild=true
+          PACKAGE="${NAME}.${VERSION}.nupkg"
+          (cd dist && sha256sum -- "${PACKAGE}") > SHA256SUMS
+          echo "package=${PACKAGE}" >> "${GITHUB_OUTPUT}"
+
+      # Audits only the SDK project, so the test project's packages aren't
+      # counted. NuGet versions can't be replaced once published, so the
+      # SBOM tool's version pins its code.
+      - name: Audit runtime dependencies and write SBOM
+        env:
+          NAME: ${{ steps.check.outputs.name }}
+          VERSION: ${{ steps.check.outputs.version }}
+          LICENSE: ${{ steps.check.outputs.license }}
+          CYCLONEDX_VERSION: 6.3.1
+        run: |
+          dotnet list src/ComposerSdk/ComposerSdk.csproj package --vulnerable --include-transitive --format json > "${RUNNER_TEMP}/vulnerable.json"
+          VULNERABLE="$(jq -r '.projects[].frameworks[]? | (.topLevelPackages[]?, .transitivePackages[]?) | select(.vulnerabilities) | "\(.id) \(.resolvedVersion): \([.vulnerabilities[].advisoryurl] | join(", "))"' "${RUNNER_TEMP}/vulnerable.json")"
+          if [[ -n "${VULNERABLE}" ]]; then
+            echo "Vulnerable runtime packages:"
+            echo "${VULNERABLE}"
+            exit 1
+          fi
+          dotnet tool install --tool-path "${RUNNER_TEMP}/tools" CycloneDX --version "${CYCLONEDX_VERSION}"
+          "${RUNNER_TEMP}/tools/dotnet-CycloneDX" src/ComposerSdk/ComposerSdk.csproj --disable-package-restore --output "${RUNNER_TEMP}/sbom" --filename sbom.cdx.json --output-format Json --set-type Library --set-name "${NAME}" --set-version "${VERSION}" --set-nuget-purl
+          # The tool doesn't record the package's own license on the root.
+          jq --arg license "${LICENSE}" '.metadata.component.licenses = [{license: {id: $license}}]' "${RUNNER_TEMP}/sbom/sbom.cdx.json" > sbom.cdx.json
+
+      # Scans the files users receive. The hash pins the download; --redact
+      # keeps a found secret's value out of the public log while --verbose
+      # still shows where it is.
+      - name: Scan package for secrets
+        env:
+          PACKAGE: ${{ steps.pack.outputs.package }}
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          ARCHIVE="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${ARCHIVE}"
+          echo "${GITLEAKS_SHA256}  ${ARCHIVE}" | sha256sum -c -
+          tar -xzf "${ARCHIVE}" gitleaks
+          mkdir "${RUNNER_TEMP}/package"
+          unzip -q "dist/${PACKAGE}" -d "${RUNNER_TEMP}/package"
+          ./gitleaks dir "${RUNNER_TEMP}/package" --redact --verbose
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            dist/*.nupkg
+            SHA256SUMS
+            sbom.cdx.json
+            release-notes.md
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    # Required reviewers and the v* tag rule live on this environment, and the
+    # NuGet trusted publishing policy is bound to it.
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      NAME: ${{ needs.build.outputs.name }}
+      VERSION: ${{ needs.build.outputs.version }}
+      PACKAGE: ${{ needs.build.outputs.package }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      - name: Verify package checksum
+        working-directory: dist
+        run: sha256sum -c ../SHA256SUMS
+
+      - name: Check version is not already on NuGet
+        run: |
+          URL="https://api.nuget.org/v3-flatcontainer/${NAME,,}/index.json"
+          STATUS="$(curl -sS -o "${RUNNER_TEMP}/versions.json" -w "%{http_code}" "${URL}")"
+          if [[ "${STATUS}" == "404" ]]; then
+            exit 0
+          fi
+          if [[ "${STATUS}" != "200" ]]; then
+            echo "Expected HTTP 200 or 404 from ${URL}, got ${STATUS}"
+            exit 1
+          fi
+          if jq -e --arg v "${VERSION,,}" '.versions | index($v) != null' "${RUNNER_TEMP}/versions.json" > /dev/null; then
+            echo "${NAME} ${VERSION} is already on NuGet"
+            exit 1
+          fi
+
+      # Exchanges the job's OIDC token for an API key that expires in an hour.
+      - name: Log in to NuGet
+        id: login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: spreedly-engineering
+
+      # Uses the runner's preinstalled .NET, so no restore or build runs in
+      # this job.
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "dist/${PACKAGE}" --api-key "${NUGET_API_KEY}" --source https://api.nuget.org/v3/index.json
+
+  release:
+    needs: [build, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE: ${{ needs.build.outputs.package }}
+        run: gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --notes-file release-notes.md "dist/${PACKAGE}" SHA256SUMS sbom.cdx.json
