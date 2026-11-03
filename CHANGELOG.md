@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 (unreleased)
+## 1.0.0 (2026-11-03)
 
 First release as `Spreedly.ComposerSdk.Server`. If you're upgrading from `Dodgeball.TrustServer` 1.0.8, read **Changed** and **Removed**.
 
