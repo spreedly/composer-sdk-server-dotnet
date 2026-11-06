@@ -54,7 +54,7 @@ public class UtilitiesTests
 
         // Assert
         headers["Dodgeball-Secret-Key"].Should().Be("secret-key");
-        headers["Composer-SDK-Version"].Should().Be("1.0.0");
+        headers["Composer-SDK-Version"].Should().Be(Constants.SdkVersion);
         headers["Composer-SDK-Source"].Should().Be("dotnet-sdk");
         headers["Content-Type"].Should().Be("application/json");
     }
