@@ -38,7 +38,7 @@ public static class VerificationOutcome
 public static class Constants
 {
     // Sent in the Composer-SDK-Version header. Keep in sync with <Version> in ComposerSdk.csproj.
-    public const string SdkVersion = "1.0.0";
+    public const string SdkVersion = "1.0.1";
     public const string DefaultApiUrl = "https://api.dodgeballhq.com/";
     public const int DefaultRequestTimeoutMs = 30 * 1000; // 30 seconds
     public const int BaseCheckpointPollingWaitMs = 100;

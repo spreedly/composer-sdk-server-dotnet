@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1 (2026-11-06)
+
+No changes to the SDK's code.
+
+### Changed
+- The README's frontend example imports `Composer` from `@spreedly/composer-sdk-client` and calls `composer.getSourceToken()` and `composer.handleVerification()`.
+
 ## 1.0.0 (2026-11-03)
 
 First release as `Spreedly.ComposerSdk.Server`. If you're upgrading from `Dodgeball.TrustServer` 1.0.8, read **Changed** and **Removed**.

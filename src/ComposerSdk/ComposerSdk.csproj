@@ -5,7 +5,7 @@
     <RootNamespace>Spreedly.ComposerSdk</RootNamespace>
     <AssemblyName>Spreedly.ComposerSdk</AssemblyName>
     <PackageId>Spreedly.ComposerSdk.Server</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Authors>Spreedly</Authors>
     <Company>Spreedly, Inc.</Company>
     <Product>Spreedly Composer .NET Server SDK</Product>
